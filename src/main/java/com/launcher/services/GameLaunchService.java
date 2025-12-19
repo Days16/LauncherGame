@@ -201,6 +201,25 @@ public class GameLaunchService {
         });
     }
 
+    public boolean isVersionInstalled(VersionInfo version) {
+        File versionFolder;
+        if ("modpack".equals(version.getType())) {
+            versionFolder = new File(gameDir + "/modpacks", version.getId());
+        } else {
+            versionFolder = new File(versionsDir, version.getId());
+        }
+        File versionJsonFile = new File(versionFolder, version.getId() + ".json");
+        File clientJar = new File(versionFolder, version.getId() + ".jar");
+
+        // For modpacks, we just check the folder/json
+        if ("modpack".equals(version.getType())) {
+            return versionFolder.exists() && versionJsonFile.exists();
+        }
+
+        // For regular versions, we check both json and jar
+        return versionJsonFile.exists() && clientJar.exists();
+    }
+
     private boolean checkRules(JsonObject lib) {
         if (!lib.has("rules"))
             return true;

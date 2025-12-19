@@ -16,9 +16,11 @@ com\launcher\services\MicrosoftAuthService$DeviceCodeResponse.class
 com\launcher\services\VersionInfo.class
 com\launcher\services\VersionService.class
 com\launcher\services\RemoteModpackService.class
+com\launcher\ui\DashboardView$1.class
 com\launcher\services\LogService.class
 com\launcher\services\RemoteModpackService$RemoteModpack.class
 com\launcher\ui\ImportView.class
 com\launcher\services\SettingsService.class
 com\launcher\services\ModpackService$ModpackType.class
 com\launcher\services\GameLaunchService.class
+com\launcher\ui\DashboardView$1$1.class

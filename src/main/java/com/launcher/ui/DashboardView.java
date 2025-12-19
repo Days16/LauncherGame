@@ -11,9 +11,16 @@ import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
+import javafx.scene.control.ListView;
 import javafx.scene.control.ProgressBar;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
+import javafx.scene.paint.Color;
+import javafx.scene.shape.Circle;
+import javafx.scene.control.ListCell;
+import javafx.util.Callback;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -98,6 +105,57 @@ public class DashboardView extends VBox {
                 }
             }
         };
+
+        // Custom ListCell for Version Selector
+        versionSelector.setCellFactory(new Callback<ListView<VersionInfo>, ListCell<VersionInfo>>() {
+            @Override
+            public ListCell<VersionInfo> call(ListView<VersionInfo> param) {
+                return new ListCell<VersionInfo>() {
+                    @Override
+                    protected void updateItem(VersionInfo item, boolean empty) {
+                        super.updateItem(item, empty);
+                        if (empty || item == null) {
+                            setGraphic(null);
+                            setText(null);
+                        } else {
+                            HBox container = new HBox(10);
+                            container.setAlignment(Pos.CENTER_LEFT);
+
+                            Label nameLabel = new Label(item.getId());
+                            nameLabel.setStyle("-fx-text-fill: white; -fx-font-weight: bold;");
+
+                            Label typeLabel = new Label(item.getType().toUpperCase());
+                            typeLabel.getStyleClass().add("version-tag");
+                            if (item.getType().equals("release"))
+                                typeLabel.setStyle("-fx-background-color: #4caf50;");
+                            else if (item.getType().equals("snapshot"))
+                                typeLabel.setStyle("-fx-background-color: #ff9800;");
+                            else if (item.getType().equals("modpack"))
+                                typeLabel.setStyle("-fx-background-color: #9c27b0;");
+                            else
+                                typeLabel.setStyle("-fx-background-color: #607d8b;");
+
+                            Region spacer = new Region();
+                            HBox.setHgrow(spacer, Priority.ALWAYS);
+
+                            container.getChildren().addAll(nameLabel, typeLabel, spacer);
+
+                            // Installation Indicator
+                            if (new GameLaunchService().isVersionInstalled(item)) {
+                                Label check = new Label("✓");
+                                check.setStyle("-fx-text-fill: #4caf50; -fx-font-weight: bold; -fx-font-size: 14px;");
+                                container.getChildren().add(check);
+                            }
+
+                            setGraphic(container);
+                        }
+                    }
+                };
+            }
+        });
+
+        // Also set the button cell (the selected item view)
+        versionSelector.setButtonCell(versionSelector.getCellFactory().call(null));
 
         releaseCb.setOnAction(e -> applyFilters.run());
         snapshotCb.setOnAction(e -> applyFilters.run());
