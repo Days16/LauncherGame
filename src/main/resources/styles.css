@@ -1,0 +1,109 @@
+/* Global Dark Theme Variables */
+.root {
+    -fx-background-color: #1e1e1e;
+    -fx-font-family: 'Segoe UI', sans-serif;
+    -fx-text-fill: #e0e0e0;
+}
+
+/* Typography */
+.label {
+    -fx-text-fill: #e0e0e0;
+}
+
+.h1 {
+    -fx-font-size: 24px;
+    -fx-font-weight: bold;
+}
+
+.h2 {
+    -fx-font-size: 18px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #a0a0a0;
+}
+
+/* Custom Title Bar */
+.title-bar {
+    -fx-background-color: #252526;
+    -fx-padding: 5 10 5 10;
+    -fx-alignment: center-left;
+}
+
+.window-button {
+    -fx-background-color: transparent;
+    -fx-text-fill: #a0a0a0;
+    -fx-font-size: 12px;
+    -fx-cursor: hand;
+    -fx-padding: 5 10;
+}
+
+.window-button:hover {
+    -fx-background-color: #3e3e42;
+    -fx-text-fill: white;
+}
+
+.window-button.close:hover {
+    -fx-background-color: #e81123;
+}
+
+/* Dashboard */
+.dashboard {
+    -fx-padding: 40;
+    -fx-alignment: center;
+    -fx-spacing: 20;
+}
+
+/* Play Button */
+.play-button {
+    -fx-background-color: #4caf50; /* Emerald Green */
+    -fx-text-fill: white;
+    -fx-font-size: 18px;
+    -fx-font-weight: bold;
+    -fx-padding: 15 40;
+    -fx-background-radius: 5;
+    -fx-cursor: hand;
+    -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.3), 10, 0, 0, 4);
+}
+
+.play-button:hover {
+    -fx-background-color: #43a047;
+}
+
+.play-button:pressed {
+    -fx-background-color: #388e3c;
+    -fx-effect: none;
+    -fx-translate-y: 2;
+}
+
+/* Combo Box (Version Selector) */
+.combo-box {
+    -fx-background-color: #2d2d30;
+    -fx-text-fill: white;
+    -fx-background-radius: 3;
+    -fx-border-color: #3e3e42;
+    -fx-border-radius: 3;
+}
+
+.combo-box .cell {
+    -fx-text-fill: white;
+    -fx-background-color: transparent;
+}
+
+.combo-box .list-cell {
+    -fx-background-color: #2d2d30;
+    -fx-text-fill: white;
+}
+
+.combo-box .list-cell:hover {
+    -fx-background-color: #3e3e42;
+}
+
+/* Progress Bar */
+.progress-bar .track {
+    -fx-background-color: #2d2d30;
+    -fx-background-radius: 5;
+}
+
+.progress-bar .bar {
+    -fx-background-color: #4caf50;
+    -fx-background-radius: 5;
+}

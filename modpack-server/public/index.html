@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modpack Server Manager</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0f0f12;
+            --card-bg: #1a1a1f;
+            --accent: #4caf50;
+            --accent-hover: #45a049;
+            --text: #ffffff;
+            --text-dim: #a0a0a0;
+            --danger: #e81123;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 800px;
+            background: var(--card-bg);
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        h1 {
+            font-weight: 800;
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            background: linear-gradient(45deg, #4caf50, #8bc34a);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        p.subtitle {
+            color: var(--text-dim);
+            margin-bottom: 30px;
+        }
+
+        .repo-info {
+            background: rgba(255, 255, 255, 0.03);
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .repo-info code {
+            color: var(--accent);
+            font-family: monospace;
+        }
+
+        .drop-zone {
+            border: 2px dashed rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 40px;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            margin-bottom: 30px;
+        }
+
+        .drop-zone:hover,
+        .drop-zone.drag-over {
+            border-color: var(--accent);
+            background: rgba(76, 175, 80, 0.05);
+        }
+
+        .drop-zone p {
+            color: var(--text-dim);
+            font-size: 1.1rem;
+        }
+
+        .modpack-list {
+            display: grid;
+            gap: 15px;
+        }
+
+        .modpack-item {
+            background: rgba(255, 255, 255, 0.03);
+            padding: 15px 20px;
+            border-radius: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            animation: slideIn 0.3s ease-out forwards;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .modpack-item .info h3 {
+            font-size: 1.1rem;
+            margin-bottom: 4px;
+        }
+
+        .modpack-item .info span {
+            font-size: 0.85rem;
+            color: var(--text-dim);
+        }
+
+        .btn-delete {
+            background: transparent;
+            border: 1px solid var(--danger);
+            color: var(--danger);
+            padding: 8px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 600;
+        }
+
+        .btn-delete:hover {
+            background: var(--danger);
+            color: white;
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        .status {
+            margin-top: 10px;
+            font-size: 0.9rem;
+            text-align: center;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>Modpack Server</h1>
+        <p class="subtitle">Upload and manage your community modpacks.</p>
+
+        <div class="repo-info">
+            <span>Repository URL for Launcher:</span>
+            <code id="repoUrl">Loading...</code>
+        </div>
+
+        <div class="drop-zone" id="dropZone">
+            <p>Drag & Drop your <b>.mrpack</b> or <b>.zip</b> here</p>
+            <input type="file" id="fileInput" accept=".mrpack,.zip">
+        </div>
+
+        <div id="status" class="status"></div>
+
+        <div class="modpack-list" id="modpackList">
+            <!-- Modpacks will be loaded here -->
+        </div>
+    </div>
+
+    <script>
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const modpackList = document.getElementById('modpackList');
+        const status = document.getElementById('status');
+        const repoUrl = document.getElementById('repoUrl');
+
+        repoUrl.innerText = window.location.origin + '/modpacks.json';
+
+        // Drag & Drop
+        dropZone.onclick = () => fileInput.click();
+
+        dropZone.ondragover = (e) => {
+            e.preventDefault();
+            dropZone.classList.add('drag-over');
+        };
+
+        dropZone.ondragleave = () => dropZone.classList.remove('drag-over');
+
+        dropZone.ondrop = (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('drag-over');
+            if (e.dataTransfer.files.length) {
+                uploadFile(e.dataTransfer.files[0]);
+            }
+        };
+
+        fileInput.onchange = () => {
+            if (fileInput.files.length) {
+                uploadFile(fileInput.files[0]);
+            }
+        };
+
+        async function uploadFile(file) {
+            const formData = new FormData();
+            formData.append('modpack', file);
+
+            status.innerText = 'Uploading...';
+            status.style.color = 'var(--accent)';
+
+            try {
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (response.ok) {
+                    status.innerText = 'Upload successful!';
+                    loadModpacks();
+                } else {
+                    status.innerText = 'Upload failed.';
+                    status.style.color = 'var(--danger)';
+                }
+            } catch (err) {
+                status.innerText = 'Error connecting to server.';
+                status.style.color = 'var(--danger)';
+            }
+        }
+
+        async function loadModpacks() {
+            try {
+                const response = await fetch('/manifest');
+                const data = await response.json();
+
+                modpackList.innerHTML = '';
+                data.modpacks.forEach(mp => {
+                    const item = document.createElement('div');
+                    item.className = 'modpack-item';
+                    item.innerHTML = `
+                        <div class="info">
+                            <h3>${mp.name}</h3>
+                            <span>Version ${mp.version}</span>
+                        </div>
+                        <button class="btn-delete" onclick="deleteModpack('${mp.filename}')">Delete</button>
+                    `;
+                    modpackList.appendChild(item);
+                });
+            } catch (err) {
+                console.error('Failed to load modpacks');
+            }
+        }
+
+        async function deleteModpack(filename) {
+            if (!confirm('Are you sure you want to delete this modpack?')) return;
+
+            try {
+                const response = await fetch(`/modpacks/${encodeURIComponent(filename)}`, { method: 'DELETE' });
+                if (response.ok) {
+                    loadModpacks();
+                } else {
+                    alert('Delete failed: ' + await response.text());
+                }
+            } catch (err) {
+                console.error('Delete failed', err);
+            }
+        }
+
+        loadModpacks();
+    </script>
+</body>
+
+</html>
