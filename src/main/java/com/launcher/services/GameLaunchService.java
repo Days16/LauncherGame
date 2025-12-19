@@ -42,7 +42,7 @@ public class GameLaunchService {
                 // 2. Download Version JSON
                 File versionFolder;
                 if ("modpack".equals(version.getType())) {
-                    versionFolder = new File(System.getenv("APPDATA") + "/.minecraft/modpacks", version.getId());
+                    versionFolder = new File(gameDir + "/modpacks", version.getId());
                 } else {
                     versionFolder = new File(versionsDir, version.getId());
                 }

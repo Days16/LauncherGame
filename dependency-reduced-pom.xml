@@ -24,6 +24,8 @@
               <goal>shade</goal>
             </goals>
             <configuration>
+              <shadedArtifactAttached>true</shadedArtifactAttached>
+              <shadedClassifierName>shaded</shadedClassifierName>
               <transformers>
                 <transformer>
                   <mainClass>com.launcher.Launcher</mainClass>
@@ -40,6 +42,46 @@
         <configuration>
           <mainClass>com.launcher.Launcher</mainClass>
         </configuration>
+      </plugin>
+      <plugin>
+        <groupId>com.akathist.maven.plugins.launch4j</groupId>
+        <artifactId>launch4j-maven-plugin</artifactId>
+        <version>2.1.2</version>
+        <executions>
+          <execution>
+            <id>l4j-clui</id>
+            <phase>package</phase>
+            <goals>
+              <goal>launch4j</goal>
+            </goals>
+            <configuration>
+              <headerType>gui</headerType>
+              <jar>${project.build.directory}/${project.artifactId}-${project.version}-shaded.jar</jar>
+              <outfile>${project.build.directory}/${project.artifactId}.exe</outfile>
+              <downloadUrl>https://adoptium.net/</downloadUrl>
+              <classPath>
+                <mainClass>com.launcher.Launcher</mainClass>
+                <preCp>anything</preCp>
+              </classPath>
+              <jre>
+                <minVersion>17</minVersion>
+                <jdkPreference>preferJdk</jdkPreference>
+                <runtimeBits>64</runtimeBits>
+              </jre>
+              <versionInfo>
+                <fileVersion>1.0.0.0</fileVersion>
+                <txtFileVersion>${project.version}</txtFileVersion>
+                <fileDescription>Minecraft Launcher</fileDescription>
+                <copyright>2025</copyright>
+                <productVersion>1.0.0.0</productVersion>
+                <txtProductVersion>${project.version}</txtProductVersion>
+                <productName>Minecraft Launcher</productName>
+                <internalName>launcher</internalName>
+                <originalFilename>launcher.exe</originalFilename>
+              </versionInfo>
+            </configuration>
+          </execution>
+        </executions>
       </plugin>
     </plugins>
   </build>

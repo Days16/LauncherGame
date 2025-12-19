@@ -20,6 +20,8 @@
 # production
 /build
 
+# modpack-server specific
+
 # misc
 .DS_Store
 *.pem
@@ -40,6 +42,5 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-/target
-/modpack-server
+
 

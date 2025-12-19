@@ -178,6 +178,8 @@ public class RemoteModpackService {
             while ((bytesRead = in.read(dataBuffer, 0, 1024)) != -1) {
                 fileOutputStream.write(dataBuffer, 0, bytesRead);
             }
+        } catch (Exception e) {
+            throw new IOException("Failed to download from " + urlStr + ": " + e.getMessage(), e);
         }
     }
 

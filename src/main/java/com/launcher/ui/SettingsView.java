@@ -3,6 +3,7 @@ package com.launcher.ui;
 import com.launcher.services.SettingsService;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.Slider;
 import javafx.scene.control.TextField;
@@ -73,7 +74,15 @@ public class SettingsView extends VBox {
             settings.setRepoUrl(newVal);
         });
 
-        repoSection.getChildren().addAll(repoLabel, repoUrlField);
+        Button resetRepoBtn = new Button("Reset to Default");
+        resetRepoBtn.setStyle("-fx-background-color: #3e3e42; -fx-text-fill: white; -fx-padding: 5 10;");
+        resetRepoBtn.setOnAction(e -> {
+            String defaultUrl = "https://modpack-server.vercel.app/modpacks.json";
+            repoUrlField.setText(defaultUrl);
+            settings.setRepoUrl(defaultUrl);
+        });
+
+        repoSection.getChildren().addAll(repoLabel, repoUrlField, resetRepoBtn);
 
         this.getChildren().addAll(title, ramSection, javaSection, repoSection);
     }

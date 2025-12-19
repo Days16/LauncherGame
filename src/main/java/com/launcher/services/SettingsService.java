@@ -69,7 +69,7 @@ public class SettingsService {
     }
 
     public String getRepoUrl() {
-        return props.getProperty("repoUrl", "");
+        return props.getProperty("repoUrl", "https://modpack-server.vercel.app/modpacks.json");
     }
 
     public void setRepoUrl(String url) {

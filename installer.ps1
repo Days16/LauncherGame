@@ -11,9 +11,18 @@ Write-Host "--- $AppName Installer ---" -ForegroundColor Cyan
 
 # 1. Check Java Version
 Write-Host "Checking Java version..." -ForegroundColor Gray
+$javaCmd = "java"
+if (-not (Get-Command $javaCmd -ErrorAction SilentlyContinue)) {
+    if ($env:JAVA_HOME -and (Test-Path "$env:JAVA_HOME\bin\java.exe")) {
+        $javaCmd = "$env:JAVA_HOME\bin\java.exe"
+        Write-Host "Using Java from JAVA_HOME: $javaCmd" -ForegroundColor Gray
+    }
+}
+
 try {
-    $javaVersionOutput = java -version 2>&1 | Out-String
-    if ($javaVersionOutput -match 'version "(\d+)') {
+    $javaVersionOutput = & $javaCmd -version 2>&1 | Out-String
+    # More robust regex to match "version X" or just "X.Y.Z"
+    if ($javaVersionOutput -match 'version "(\d+)' -or $javaVersionOutput -match ' (\d+)\.\d+') {
         $version = [int]$matches[1]
         if ($version -lt 17) {
             Write-Host "Error: Java 17 or higher is required. Found version $version." -ForegroundColor Red
@@ -21,11 +30,12 @@ try {
         }
         Write-Host "Java $version found. OK." -ForegroundColor Green
     } else {
-        Write-Host "Error: Could not determine Java version. Please ensure Java 17+ is installed." -ForegroundColor Red
+        Write-Host "Debug: Java output was: $javaVersionOutput" -ForegroundColor DarkGray
+        Write-Host "Error: Could not determine Java version. Please ensure Java 17+ is installed and in your PATH." -ForegroundColor Red
         exit 1
     }
 } catch {
-    Write-Host "Error: Java is not installed. Please install Java 17 or higher." -ForegroundColor Red
+    Write-Host "Error: Java is not installed or not in PATH. Please install Java 17 or higher." -ForegroundColor Red
     exit 1
 }
 
