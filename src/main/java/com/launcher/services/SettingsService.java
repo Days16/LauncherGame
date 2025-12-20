@@ -9,7 +9,7 @@ public class SettingsService {
     private static SettingsService instance;
     private final Properties props = new Properties();
     private final File settingsFile = new File(
-            System.getProperty("user.home") + "/Documents/MinecraftLauncher/launcher_settings.properties");
+            System.getProperty("user.home") + "/Documents/AntigravityLauncher/launcher_settings.properties");
 
     private SettingsService() {
         load();
@@ -35,7 +35,7 @@ public class SettingsService {
     public void save() {
         try {
             settingsFile.getParentFile().mkdirs();
-            props.store(new FileWriter(settingsFile), "Minecraft Launcher Settings");
+            props.store(new FileWriter(settingsFile), "Antigravity Launcher Settings");
         } catch (Exception e) {
             LogService.error("Failed to save settings to " + settingsFile.getAbsolutePath(), e);
         }
@@ -74,6 +74,42 @@ public class SettingsService {
 
     public void setRepoUrl(String url) {
         props.setProperty("repoUrl", url);
+        save();
+    }
+
+    public int getResolutionWidth() {
+        return Integer.parseInt(props.getProperty("resolutionWidth", "854"));
+    }
+
+    public void setResolutionWidth(int width) {
+        props.setProperty("resolutionWidth", String.valueOf(width));
+        save();
+    }
+
+    public int getResolutionHeight() {
+        return Integer.parseInt(props.getProperty("resolutionHeight", "480"));
+    }
+
+    public void setResolutionHeight(int height) {
+        props.setProperty("resolutionHeight", String.valueOf(height));
+        save();
+    }
+
+    public boolean isFullScreen() {
+        return Boolean.parseBoolean(props.getProperty("fullScreen", "false"));
+    }
+
+    public void setFullScreen(boolean fullScreen) {
+        props.setProperty("fullScreen", String.valueOf(fullScreen));
+        save();
+    }
+
+    public boolean isAutoClose() {
+        return Boolean.parseBoolean(props.getProperty("autoClose", "false"));
+    }
+
+    public void setAutoClose(boolean autoClose) {
+        props.setProperty("autoClose", String.valueOf(autoClose));
         save();
     }
 }

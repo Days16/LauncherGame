@@ -2,13 +2,13 @@ package com.launcher.ui;
 
 import com.launcher.services.MicrosoftAuthService;
 import com.launcher.services.SessionService;
+import javafx.geometry.Insets;
 import javafx.geometry.Pos;
-import javafx.scene.control.Button;
-import javafx.scene.control.Label;
-import javafx.scene.control.ProgressBar;
-import javafx.scene.control.Separator;
-import javafx.scene.control.TextField;
+import javafx.scene.control.*;
 import javafx.scene.layout.VBox;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
 
 public class LoginView extends VBox {
 
@@ -21,63 +21,82 @@ public class LoginView extends VBox {
     public LoginView() {
         this.getStyleClass().add("dashboard");
         this.setAlignment(Pos.CENTER);
-        this.setSpacing(20);
+        this.setSpacing(30);
+        this.setPadding(new Insets(40));
 
-        Label title = new Label("Accounts");
+        Label title = new Label("ACCOUNTS");
         title.getStyleClass().add("h1");
 
-        // --- Login Container ---
-        loginContainer = new VBox(15);
+        // --- LOGIN CONTAINER ---
+        loginContainer = new VBox(25);
         loginContainer.setAlignment(Pos.CENTER);
-        loginContainer.setMaxWidth(300);
-        loginContainer.setStyle("-fx-background-color: #2d2d30; -fx-padding: 30; -fx-background-radius: 10;");
+        loginContainer.setMaxWidth(400);
+        loginContainer.getStyleClass().add("modpack-card");
+        loginContainer.setPadding(new Insets(40));
 
-        // Microsoft Login
-        Button msLoginBtn = new Button("Login with Microsoft");
-        msLoginBtn.setStyle(
-                "-fx-background-color: #00a4ef; " +
-                        "-fx-text-fill: white; " +
-                        "-fx-font-weight: bold; " +
-                        "-fx-padding: 10 20; " +
-                        "-fx-cursor: hand;");
+        // Microsoft Login (Primary)
+        Button msLoginBtn = new Button("LOGIN WITH MICROSOFT");
+        msLoginBtn.getStyleClass().add("play-button");
         msLoginBtn.setMaxWidth(Double.MAX_VALUE);
         msLoginBtn.setOnAction(e -> handleMicrosoftLogin());
 
-        Separator sep = new Separator();
+        HBox orBox = new HBox(10);
+        orBox.setAlignment(Pos.CENTER);
+        Region l1 = new Region();
+        HBox.setHgrow(l1, Priority.ALWAYS);
+        l1.setStyle("-fx-background-color: rgba(255,255,255,0.05); -fx-pref-height: 1;");
+        Label orLabel = new Label("OR");
+        orLabel.setStyle("-fx-text-fill: #8e8e93; -fx-font-size: 10px; -fx-font-weight: bold;");
+        Region l2 = new Region();
+        HBox.setHgrow(l2, Priority.ALWAYS);
+        l2.setStyle("-fx-background-color: rgba(255,255,255,0.05); -fx-pref-height: 1;");
+        orBox.getChildren().addAll(l1, orLabel, l2);
 
-        // Offline Login
+        // Offline Login (Secondary)
+        VBox offlineBox = new VBox(15);
+        offlineBox.setAlignment(Pos.CENTER);
+
         TextField userField = new TextField();
-        userField.setPromptText("Username (Offline)");
-        userField.setStyle("-fx-background-color: #3e3e42; -fx-text-fill: white; -fx-padding: 10;");
+        userField.setPromptText("Enter Offline Username");
+        userField.getStyleClass().add("combo-box");
+        userField.setStyle("-fx-background-color: rgba(255,255,255,0.03); -fx-text-fill: white; -fx-padding: 12;");
 
-        Button offlineLoginBtn = new Button("Login Offline");
-        offlineLoginBtn.setStyle(
-                "-fx-background-color: #606060; " +
-                        "-fx-text-fill: white; " +
-                        "-fx-padding: 8 15; " +
-                        "-fx-cursor: hand;");
+        Button offlineLoginBtn = new Button("LOGIN OFFLINE");
+        offlineLoginBtn.getStyleClass().add("nav-button");
+        offlineLoginBtn.setAlignment(Pos.CENTER);
         offlineLoginBtn.setMaxWidth(Double.MAX_VALUE);
+        offlineLoginBtn
+                .setStyle("-fx-background-color: rgba(255,255,255,0.05); -fx-text-fill: white; -fx-font-weight: bold;");
         offlineLoginBtn.setOnAction(e -> handleOfflineLogin(userField.getText()));
 
-        loginContainer.getChildren().addAll(new Label("Sign in to play"), msLoginBtn, sep, userField, offlineLoginBtn);
+        offlineBox.getChildren().addAll(userField, offlineLoginBtn);
 
-        // --- Profile Container (Hidden by default) ---
-        profileContainer = new VBox(15);
+        loginContainer.getChildren().addAll(new Label("Sign in to your account"), msLoginBtn, orBox, offlineBox);
+
+        // --- PROFILE CONTAINER ---
+        profileContainer = new VBox(20);
         profileContainer.setAlignment(Pos.CENTER);
         profileContainer.setVisible(false);
         profileContainer.setManaged(false);
+        profileContainer.getStyleClass().add("modpack-card");
+        profileContainer.setPadding(new Insets(40));
+        profileContainer.setMaxWidth(400);
 
         usernameLabel = new Label("Steve");
-        usernameLabel.setStyle("-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: white;");
+        usernameLabel.getStyleClass().add("h1");
+        usernameLabel.setStyle("-fx-text-fill: #10b981;");
 
-        Button logoutBtn = new Button("Logout");
-        logoutBtn.setStyle("-fx-background-color: #e81123; -fx-text-fill: white; -fx-cursor: hand;");
+        Button logoutBtn = new Button("LOGOUT");
+        logoutBtn.getStyleClass().add("play-button");
+        logoutBtn.setStyle(
+                "-fx-background-color: #ef4444; -fx-effect: dropshadow(three-pass-box, rgba(239, 68, 68, 0.4), 20, 0, 0, 8);");
         logoutBtn.setOnAction(e -> handleLogout());
 
-        profileContainer.getChildren().addAll(new Label("Currently logged in as:"), usernameLabel, logoutBtn);
+        profileContainer.getChildren().addAll(new Label("Currently logged in as"), usernameLabel, logoutBtn);
 
         // Status
         statusLabel = new Label("");
+        statusLabel.setStyle("-fx-text-fill: #8e8e93; -fx-font-size: 12px;");
 
         this.getChildren().addAll(title, loginContainer, profileContainer, statusLabel);
 
@@ -86,8 +105,6 @@ public class LoginView extends VBox {
 
     private void handleMicrosoftLogin() {
         statusLabel.setText("Connecting to Microsoft...");
-        statusLabel.setStyle("-fx-text-fill: #a0a0a0;");
-
         loginContainer.setDisable(true);
 
         MicrosoftAuthService authService = new MicrosoftAuthService();
@@ -95,48 +112,46 @@ public class LoginView extends VBox {
             javafx.application.Platform.runLater(() -> {
                 if (response == null) {
                     statusLabel.setText("Failed to connect.");
-                    statusLabel.setStyle("-fx-text-fill: #e81123;");
                     loginContainer.setDisable(false);
                     return;
                 }
 
-                // Show Code
                 loginContainer.getChildren().clear();
-
                 Label instr = new Label("1. Go to: " + response.verification_uri);
-                instr.setStyle("-fx-text-fill: white; -fx-font-size: 14px;");
+                instr.setStyle("-fx-text-fill: white;");
 
                 TextField codeField = new TextField(response.user_code);
                 codeField.setEditable(false);
+                codeField.getStyleClass().add("combo-box");
                 codeField.setStyle(
-                        "-fx-font-size: 24px; -fx-alignment: center; -fx-background-color: #3e3e42; -fx-text-fill: #4caf50;");
-                codeField.setMaxWidth(200);
+                        "-fx-font-size: 24px; -fx-alignment: center; -fx-text-fill: #10b981; -fx-font-weight: bold;");
+                codeField.setMaxWidth(250);
 
                 Label instr2 = new Label("2. Enter the code above.");
-                instr2.setStyle("-fx-text-fill: #a0a0a0;");
+                instr2.setStyle("-fx-text-fill: #8e8e93;");
 
                 ProgressBar spinner = new ProgressBar();
+                spinner.setPrefWidth(200);
 
-                Button cancelBtn = new Button("Cancel");
+                Button cancelBtn = new Button("CANCEL");
+                cancelBtn.getStyleClass().add("nav-button");
+                cancelBtn.setAlignment(Pos.CENTER);
                 cancelBtn.setOnAction(e -> {
-                    updateUI(); // Reset
+                    updateUI();
                     loginContainer.setDisable(false);
                 });
 
                 loginContainer.getChildren().addAll(instr, codeField, instr2, spinner, cancelBtn);
 
-                // Poll
                 authService.pollForToken(response).thenAccept(authResult -> {
                     javafx.application.Platform.runLater(() -> {
                         if (authResult.error != null) {
                             statusLabel.setText("Login failed: " + authResult.error);
-                            statusLabel.setStyle("-fx-text-fill: #e81123;");
-                            updateUI(); // Reset
+                            updateUI();
                         } else {
                             session.loginMicrosoft(authResult.username, authResult.uuid, authResult.accessToken);
                             updateUI();
                             statusLabel.setText("Logged in as " + authResult.username);
-                            statusLabel.setStyle("-fx-text-fill: #4caf50;");
                         }
                         loginContainer.setDisable(false);
                     });
@@ -148,13 +163,11 @@ public class LoginView extends VBox {
     private void handleOfflineLogin(String username) {
         if (username.trim().isEmpty()) {
             statusLabel.setText("Please enter a username.");
-            statusLabel.setStyle("-fx-text-fill: #e81123;");
             return;
         }
         session.loginOffline(username);
         updateUI();
         statusLabel.setText("Logged in offline.");
-        statusLabel.setStyle("-fx-text-fill: #a0a0a0;");
     }
 
     private void handleLogout() {
@@ -172,7 +185,7 @@ public class LoginView extends VBox {
         profileContainer.setManaged(loggedIn);
 
         if (loggedIn) {
-            usernameLabel.setText(session.getCurrentUser());
+            usernameLabel.setText(session.getCurrentUser().toUpperCase());
         }
     }
 }

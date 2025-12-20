@@ -5,21 +5,12 @@ import com.launcher.services.SessionService;
 import com.launcher.services.SettingsService;
 import com.launcher.services.VersionInfo;
 import com.launcher.services.VersionService;
-import com.launcher.services.LogService;
+import com.launcher.services.ModpackService;
+import com.launcher.services.RemoteModpackService;
+import javafx.geometry.Insets;
 import javafx.geometry.Pos;
-import javafx.scene.control.Button;
-import javafx.scene.control.CheckBox;
-import javafx.scene.control.ComboBox;
-import javafx.scene.control.Label;
-import javafx.scene.control.ListView;
-import javafx.scene.control.ProgressBar;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.Priority;
-import javafx.scene.layout.Region;
-import javafx.scene.layout.VBox;
-import javafx.scene.paint.Color;
-import javafx.scene.shape.Circle;
-import javafx.scene.control.ListCell;
+import javafx.scene.control.*;
+import javafx.scene.layout.*;
 import javafx.util.Callback;
 
 import java.io.File;
@@ -38,75 +29,128 @@ public class DashboardView extends VBox {
 
     // Filters
     private final CheckBox releaseCb;
-    private final CheckBox snapshotCb;
-    private final CheckBox alphaCb;
     private final CheckBox modpackCb;
-    private Label remoteTitle;
+
     private VBox remoteList;
+    private Label selectedVersionLabel;
+    private Label selectedTypeLabel;
 
     public DashboardView() {
         this.getStyleClass().add("dashboard");
-        this.setAlignment(Pos.CENTER);
+        this.setAlignment(Pos.TOP_CENTER);
+        this.setSpacing(30);
+        this.setPadding(new Insets(40));
 
-        // Hero Text
-        Label title = new Label("Minecraft Java Edition");
-        title.getStyleClass().add("h1");
+        // --- HERO SECTION ---
+        VBox hero = new VBox(10);
+        hero.setAlignment(Pos.CENTER);
 
-        // Version Selector
+        selectedVersionLabel = new Label("Select a Version");
+        selectedVersionLabel.getStyleClass().add("h1");
+
+        selectedTypeLabel = new Label("READY TO PLAY");
+        selectedTypeLabel.getStyleClass().add("h2");
+
+        hero.getChildren().addAll(selectedTypeLabel, selectedVersionLabel);
+
+        // --- CONTROLS SECTION ---
+        VBox controls = new VBox(20);
+        controls.setAlignment(Pos.CENTER);
+
+        // Version Selector & Filters
+        HBox selectorRow = new HBox(15);
+        selectorRow.setAlignment(Pos.CENTER);
+
         versionSelector = new ComboBox<>();
-        versionSelector.getStyleClass().add("combo-box");
+        versionSelector.setPrefWidth(300);
         versionSelector.setPromptText("Loading versions...");
-        versionSelector.setPrefWidth(250);
 
-        // Filters UI
-        HBox filtersBox = new HBox(10);
-        filtersBox.setAlignment(Pos.CENTER);
+        // Filter Toggles (Minimalist)
+        HBox filters = new HBox(15);
+        filters.setAlignment(Pos.CENTER);
+        releaseCb = createFilterChip("Releases", true);
+        modpackCb = createFilterChip("Modpacks", true);
+        filters.getChildren().addAll(releaseCb, modpackCb);
 
-        releaseCb = new CheckBox("Releases");
-        releaseCb.setSelected(true);
-        releaseCb.setStyle("-fx-text-fill: white;");
+        selectorRow.getChildren().addAll(versionSelector, filters);
 
-        snapshotCb = new CheckBox("Snapshots");
-        snapshotCb.setStyle("-fx-text-fill: white;");
+        // Play Button
+        playButton = new Button("PLAY");
+        playButton.getStyleClass().add("play-button");
 
-        alphaCb = new CheckBox("Alpha/Beta");
-        alphaCb.setStyle("-fx-text-fill: white;");
+        // Progress & Status
+        VBox statusBox = new VBox(10);
+        statusBox.setAlignment(Pos.CENTER);
+        progressBar = new ProgressBar(0);
+        progressBar.setPrefWidth(400);
+        progressBar.setVisible(false);
+        statusLabel = new Label("");
+        statusLabel.setStyle("-fx-text-fill: #8e8e93; -fx-font-size: 12px;");
+        statusBox.getChildren().addAll(progressBar, statusLabel);
 
-        modpackCb = new CheckBox("Modpacks");
-        modpackCb.setSelected(true);
-        modpackCb.setStyle("-fx-text-fill: white;");
+        controls.getChildren().addAll(selectorRow, playButton, statusBox);
 
-        filtersBox.getChildren().addAll(releaseCb, snapshotCb, alphaCb, modpackCb);
+        // --- REMOTE MODPACKS ---
+        VBox remoteSection = new VBox(20);
+        remoteSection.setAlignment(Pos.TOP_CENTER);
+        Label remoteTitle = new Label("EXPLORE COMMUNITY MODPACKS");
+        remoteTitle.getStyleClass().add("h2");
 
-        // Filter Logic
+        remoteList = new VBox(15);
+        remoteList.setAlignment(Pos.TOP_CENTER);
+        ScrollPane scrollPane = new ScrollPane(remoteList);
+        scrollPane.setFitToWidth(true);
+        scrollPane.setStyle(
+                "-fx-background-color: transparent; -fx-background: transparent; -fx-border-color: transparent;");
+        scrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+
+        remoteSection.getChildren().addAll(remoteTitle, scrollPane);
+        VBox.setVgrow(remoteSection, Priority.ALWAYS);
+
+        this.getChildren().addAll(hero, controls, remoteSection);
+
+        // --- LOGIC & EVENTS ---
+        setupVersionSelector();
+        playButton.setOnAction(e -> handleLaunch());
+
         Runnable applyFilters = () -> {
             List<VersionInfo> filtered = allVersions.stream()
                     .filter(v -> {
                         if (v.getType().equals("release"))
                             return releaseCb.isSelected();
-                        if (v.getType().equals("snapshot"))
-                            return snapshotCb.isSelected();
-                        if (v.getType().contains("old_"))
-                            return alphaCb.isSelected();
                         if (v.getType().equals("modpack"))
                             return modpackCb.isSelected();
                         return false;
                     })
                     .collect(Collectors.toList());
-
             versionSelector.getItems().setAll(filtered);
-            if (!filtered.isEmpty()) {
-                // Try to preserve selection or select first
-                VersionInfo current = versionSelector.getValue();
-                if (current != null && filtered.contains(current)) {
-                    versionSelector.getSelectionModel().select(current);
-                } else {
-                    versionSelector.getSelectionModel().selectFirst();
-                }
+            if (!filtered.isEmpty() && versionSelector.getSelectionModel().getSelectedItem() == null) {
+                versionSelector.getSelectionModel().selectFirst();
             }
         };
 
-        // Custom ListCell for Version Selector
+        releaseCb.setOnAction(e -> applyFilters.run());
+        modpackCb.setOnAction(e -> applyFilters.run());
+
+        versionSelector.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
+            if (newVal != null) {
+                selectedVersionLabel.setText(newVal.getId());
+                selectedTypeLabel.setText(newVal.getType().toUpperCase() + " VERSION");
+            }
+        });
+
+        refreshVersions();
+        refreshRemoteModpacks();
+    }
+
+    private CheckBox createFilterChip(String text, boolean selected) {
+        CheckBox cb = new CheckBox(text);
+        cb.setSelected(selected);
+        cb.setStyle("-fx-text-fill: #8e8e93; -fx-font-size: 12px;");
+        return cb;
+    }
+
+    private void setupVersionSelector() {
         versionSelector.setCellFactory(new Callback<ListView<VersionInfo>, ListCell<VersionInfo>>() {
             @Override
             public ListCell<VersionInfo> call(ListView<VersionInfo> param) {
@@ -116,191 +160,120 @@ public class DashboardView extends VBox {
                         super.updateItem(item, empty);
                         if (empty || item == null) {
                             setGraphic(null);
-                            setText(null);
                         } else {
-                            HBox container = new HBox(10);
-                            container.setAlignment(Pos.CENTER_LEFT);
+                            HBox cell = new HBox(10);
+                            cell.setAlignment(Pos.CENTER_LEFT);
 
-                            Label nameLabel = new Label(item.getId());
-                            nameLabel.setStyle("-fx-text-fill: white; -fx-font-weight: bold;");
+                            Label name = new Label(item.getId());
+                            name.setStyle("-fx-text-fill: white; -fx-font-weight: bold;");
 
-                            Label typeLabel = new Label(item.getType().toUpperCase());
-                            typeLabel.getStyleClass().add("version-tag");
+                            Label type = new Label(item.getType().toUpperCase());
+                            type.getStyleClass().add("version-tag");
                             if (item.getType().equals("release"))
-                                typeLabel.setStyle("-fx-background-color: #4caf50;");
+                                type.setStyle("-fx-background-color: #10b981;");
                             else if (item.getType().equals("snapshot"))
-                                typeLabel.setStyle("-fx-background-color: #ff9800;");
-                            else if (item.getType().equals("modpack"))
-                                typeLabel.setStyle("-fx-background-color: #9c27b0;");
+                                type.setStyle("-fx-background-color: #f59e0b;");
                             else
-                                typeLabel.setStyle("-fx-background-color: #607d8b;");
+                                type.setStyle("-fx-background-color: #8b5cf6;");
 
                             Region spacer = new Region();
                             HBox.setHgrow(spacer, Priority.ALWAYS);
 
-                            container.getChildren().addAll(nameLabel, typeLabel, spacer);
+                            cell.getChildren().addAll(name, type, spacer);
 
-                            // Installation Indicator
                             if (new GameLaunchService().isVersionInstalled(item)) {
                                 Label check = new Label("✓");
-                                check.setStyle("-fx-text-fill: #4caf50; -fx-font-weight: bold; -fx-font-size: 14px;");
-                                container.getChildren().add(check);
+                                check.setStyle("-fx-text-fill: #10b981; -fx-font-weight: bold;");
+                                cell.getChildren().add(check);
                             }
 
-                            setGraphic(container);
+                            setGraphic(cell);
                         }
                     }
                 };
             }
         });
-
-        // Also set the button cell (the selected item view)
         versionSelector.setButtonCell(versionSelector.getCellFactory().call(null));
-
-        releaseCb.setOnAction(e -> applyFilters.run());
-        snapshotCb.setOnAction(e -> applyFilters.run());
-        alphaCb.setOnAction(e -> applyFilters.run());
-        modpackCb.setOnAction(e -> applyFilters.run());
-
-        // Play Button
-        playButton = new Button("PLAY");
-        playButton.getStyleClass().add("play-button");
-
-        // Progress Bar (Hidden initially)
-        progressBar = new ProgressBar(0);
-        progressBar.setPrefWidth(300);
-        progressBar.setVisible(false);
-
-        // Status Label
-        statusLabel = new Label("");
-        statusLabel.setStyle("-fx-text-fill: #808080;");
-
-        // Remote Modpacks Section
-        VBox remoteModpacksBox = new VBox(10);
-        remoteModpacksBox.setAlignment(Pos.CENTER);
-        remoteTitle = new Label("Community Modpacks");
-        remoteTitle.getStyleClass().add("h2");
-        remoteTitle.setVisible(false);
-        remoteTitle.setManaged(false);
-
-        remoteList = new VBox(5);
-        remoteList.setAlignment(Pos.CENTER);
-
-        remoteModpacksBox.getChildren().addAll(remoteTitle, remoteList);
-
-        // Layout
-        this.getChildren().addAll(title, versionSelector, filtersBox, playButton, statusLabel, progressBar,
-                remoteModpacksBox);
-
-        // Event Handling
-        playButton.setOnAction(e -> handleLaunch());
-
-        // Initial Load
-        refreshVersions();
-        refreshRemoteModpacks();
     }
 
     public void refreshRemoteModpacks() {
-        if (remoteTitle == null || remoteList == null)
-            return;
-
         String repoUrl = SettingsService.getInstance().getRepoUrl();
-        if (repoUrl == null || repoUrl.isEmpty()) {
-            remoteTitle.setVisible(false);
-            remoteTitle.setManaged(false);
-            remoteList.getChildren().clear();
+        if (repoUrl == null || repoUrl.isEmpty())
             return;
-        }
 
-        new com.launcher.services.RemoteModpackService().fetchRemoteModpacks(repoUrl).thenAccept(modpacks -> {
+        new RemoteModpackService().fetchRemoteModpacks(repoUrl).thenAccept(modpacks -> {
             javafx.application.Platform.runLater(() -> {
                 remoteList.getChildren().clear();
-                if (!modpacks.isEmpty()) {
-                    remoteTitle.setVisible(true);
-                    remoteTitle.setManaged(true);
-                    for (com.launcher.services.RemoteModpackService.RemoteModpack mp : modpacks) {
-                        HBox card = new HBox(20);
-                        card.setAlignment(Pos.CENTER_LEFT);
-                        card.setStyle("-fx-background-color: #2d2d30; -fx-padding: 10; -fx-background-radius: 5;");
-                        card.setMaxWidth(400);
+                for (RemoteModpackService.RemoteModpack mp : modpacks) {
+                    HBox card = new HBox(20);
+                    card.getStyleClass().add("modpack-card");
+                    card.setAlignment(Pos.CENTER_LEFT);
+                    card.setMaxWidth(600);
 
-                        VBox info = new VBox(5);
-                        Label name = new Label(mp.name + " (" + mp.version + ")");
-                        name.setStyle("-fx-text-fill: white; -fx-font-weight: bold;");
-                        Label desc = new Label(mp.description);
-                        desc.setStyle("-fx-text-fill: #808080; -fx-font-size: 11px;");
-                        info.getChildren().addAll(name, desc);
+                    VBox info = new VBox(5);
+                    Label name = new Label(mp.name);
+                    name.setStyle("-fx-text-fill: white; -fx-font-size: 16px; -fx-font-weight: bold;");
+                    Label desc = new Label(mp.description);
+                    desc.setStyle("-fx-text-fill: #8e8e93; -fx-font-size: 12px;");
+                    info.getChildren().addAll(name, desc);
 
-                        Button installBtn = new Button("Install");
-                        installBtn.getStyleClass().add("play-button");
-                        installBtn.setStyle("-fx-font-size: 12px; -fx-padding: 5 15;");
+                    Region spacer = new Region();
+                    HBox.setHgrow(spacer, Priority.ALWAYS);
 
-                        // Check if already installed
-                        File localDir = new File(
-                                System.getProperty("user.home") + "/Documents/MinecraftLauncher/modpacks/" + mp.id);
-                        if (localDir.exists()) {
-                            installBtn.setText("Installed");
-                            installBtn.setDisable(true);
-                        }
+                    Button actionBtn = new Button("INSTALL");
+                    actionBtn.getStyleClass().add("play-button");
+                    actionBtn.setStyle("-fx-font-size: 12px; -fx-padding: 8 20;");
 
-                        installBtn.setOnAction(e -> {
-                            installBtn.setDisable(true);
-                            installBtn.setText("Installing...");
-                            new com.launcher.services.RemoteModpackService().installModpack(mp, status -> {
-                                javafx.application.Platform.runLater(() -> statusLabel.setText(status));
-                            }).thenAccept(success -> {
-                                javafx.application.Platform.runLater(() -> {
-                                    if (success) {
-                                        installBtn.setText("Installed");
-                                        refreshVersions(); // Refresh version selector
-                                    } else {
-                                        installBtn.setDisable(false);
-                                        installBtn.setText("Install");
-                                    }
-                                });
+                    if (new File(System.getProperty("user.home") + "/Documents/MinecraftLauncher/modpacks/" + mp.id)
+                            .exists()) {
+                        actionBtn.setText("INSTALLED");
+                        actionBtn.setDisable(true);
+                        actionBtn.setStyle(
+                                "-fx-background-color: rgba(255,255,255,0.05); -fx-text-fill: #8e8e93; -fx-font-size: 12px; -fx-padding: 8 20;");
+                    }
+
+                    actionBtn.setOnAction(e -> {
+                        actionBtn.setDisable(true);
+                        actionBtn.setText("INSTALLING...");
+                        new RemoteModpackService().installModpack(mp, status -> {
+                            javafx.application.Platform.runLater(() -> statusLabel.setText(status));
+                        }).thenAccept(success -> {
+                            javafx.application.Platform.runLater(() -> {
+                                if (success) {
+                                    actionBtn.setText("INSTALLED");
+                                    refreshVersions();
+                                } else {
+                                    actionBtn.setDisable(false);
+                                    actionBtn.setText("INSTALL");
+                                }
                             });
                         });
+                    });
 
-                        HBox.setHgrow(info, javafx.scene.layout.Priority.ALWAYS);
-                        card.getChildren().addAll(info, installBtn);
-                        remoteList.getChildren().add(card);
-                    }
-                } else {
-                    remoteTitle.setVisible(false);
-                    remoteTitle.setManaged(false);
+                    card.getChildren().addAll(info, spacer, actionBtn);
+                    remoteList.getChildren().add(card);
                 }
             });
         });
     }
 
     public void refreshVersions() {
-        // Fetch Versions Async
         new VersionService().getVersions().thenAccept(versions -> {
-            // Fetch Modpacks
-            List<VersionInfo> modpacks = new com.launcher.services.ModpackService().getModpacksAsVersions();
-            versions.addAll(0, modpacks); // Add modpacks at the top
-
+            List<VersionInfo> modpacks = new ModpackService().getModpacksAsVersions();
+            versions.addAll(0, modpacks);
             javafx.application.Platform.runLater(() -> {
                 allVersions = versions;
-
-                // Trigger filter update
                 List<VersionInfo> filtered = allVersions.stream()
                         .filter(v -> {
                             if (v.getType().equals("release"))
                                 return releaseCb.isSelected();
-                            if (v.getType().equals("snapshot"))
-                                return snapshotCb.isSelected();
-                            if (v.getType().contains("old_"))
-                                return alphaCb.isSelected();
                             if (v.getType().equals("modpack"))
                                 return modpackCb.isSelected();
                             return false;
                         })
                         .collect(Collectors.toList());
-
                 versionSelector.getItems().setAll(filtered);
 
-                // Restore last selection
                 String lastId = SettingsService.getInstance().getLastVersionId();
                 if (lastId != null) {
                     for (VersionInfo v : versionSelector.getItems()) {
@@ -310,7 +283,6 @@ public class DashboardView extends VBox {
                         }
                     }
                 }
-
                 if (versionSelector.getSelectionModel().getSelectedItem() == null && !filtered.isEmpty()) {
                     versionSelector.getSelectionModel().selectFirst();
                 }
@@ -322,42 +294,33 @@ public class DashboardView extends VBox {
 
     private void handleLaunch() {
         if (gameProcess != null && gameProcess.isAlive()) {
-            // STOP Logic
             gameProcess.destroy();
             playButton.setText("PLAY");
-            playButton.setStyle(""); // Reset style
-            statusLabel.setText("Game stopped.");
+            playButton.getStyleClass().remove("stop-button");
             gameProcess = null;
             return;
         }
 
         VersionInfo selectedVersion = versionSelector.getValue();
-        if (selectedVersion == null) {
-            statusLabel.setText("Please select a version!");
+        if (selectedVersion == null)
             return;
-        }
-
         if (!session.isLoggedIn()) {
             statusLabel.setText("Please login first!");
             return;
         }
 
-        // Save selection
         SettingsService.getInstance().setLastVersionId(selectedVersion.getId());
-
         playButton.setDisable(true);
         progressBar.setVisible(true);
-        progressBar.setProgress(-1); // Indeterminate
+        progressBar.setProgress(-1);
         statusLabel.setText("Initializing...");
 
-        GameLaunchService launcher = new GameLaunchService();
-        launcher.launchGame(selectedVersion, session, status -> {
+        new GameLaunchService().launchGame(selectedVersion, session, status -> {
             javafx.application.Platform.runLater(() -> {
                 statusLabel.setText(status);
                 if (status.startsWith("Error")) {
                     progressBar.setProgress(0);
                     playButton.setDisable(false);
-                    statusLabel.setStyle("-fx-text-fill: #e81123;");
                 }
             });
         }).thenAccept(process -> {
@@ -365,24 +328,24 @@ public class DashboardView extends VBox {
                 if (process != null) {
                     this.gameProcess = process;
                     playButton.setText("STOP");
-                    playButton.setStyle("-fx-background-color: #e81123; -fx-text-fill: white;");
+                    playButton.setStyle("-fx-background-color: #ef4444;");
                     playButton.setDisable(false);
-                    statusLabel.setText("Game Running...");
-                    statusLabel.setStyle("-fx-text-fill: #4caf50;");
                     progressBar.setProgress(1);
 
-                    // Reset button when game exits
+                    if (SettingsService.getInstance().isAutoClose()) {
+                        javafx.application.Platform.exit();
+                        System.exit(0);
+                    }
+
                     new Thread(() -> {
                         try {
                             process.waitFor();
                             javafx.application.Platform.runLater(() -> {
                                 playButton.setText("PLAY");
                                 playButton.setStyle("");
-                                statusLabel.setText("Game exited.");
                                 gameProcess = null;
                             });
                         } catch (InterruptedException e) {
-                            LogService.error("Error waiting for game process", e);
                         }
                     }).start();
                 } else {
@@ -390,9 +353,5 @@ public class DashboardView extends VBox {
                 }
             });
         });
-    }
-
-    public interface LaunchCallback {
-        void onStatusUpdate(String status);
     }
 }

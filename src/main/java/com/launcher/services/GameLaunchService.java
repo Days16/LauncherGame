@@ -4,8 +4,6 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.launcher.ui.DashboardView;
-import com.launcher.services.JavaRuntimeService;
 
 import java.io.BufferedInputStream;
 import java.io.File;
@@ -20,14 +18,14 @@ import java.util.concurrent.CompletableFuture;
 public class GameLaunchService {
 
     private final Gson gson = new Gson();
-    private final String gameDir = System.getProperty("user.home") + "/Documents/MinecraftLauncher"; // New path in
-                                                                                                     // Documents
+    private final String gameDir = System.getProperty("user.home") + "/Documents/AntigravityLauncher"; // New path in
+                                                                                                       // Documents
     private final String assetsDir = gameDir + "/assets";
     private final String librariesDir = gameDir + "/libraries";
     private final String versionsDir = gameDir + "/versions";
 
     public CompletableFuture<Process> launchGame(VersionInfo version, SessionService session,
-            DashboardView.LaunchCallback callback) {
+            LaunchCallback callback) {
         return CompletableFuture.supplyAsync(() -> {
             try {
                 LogService.info("Preparing to launch " + version.getId() + "...");
@@ -184,6 +182,15 @@ public class GameLaunchService {
                 command.add("msa");
                 command.add("--userProperties");
                 command.add("{}");
+
+                // Resolution & Fullscreen
+                command.add("--width");
+                command.add(String.valueOf(settings.getResolutionWidth()));
+                command.add("--height");
+                command.add(String.valueOf(settings.getResolutionHeight()));
+                if (settings.isFullScreen()) {
+                    command.add("--fullscreen");
+                }
 
                 ProcessBuilder pb = new ProcessBuilder(command);
                 pb.directory(new File(gameDir));

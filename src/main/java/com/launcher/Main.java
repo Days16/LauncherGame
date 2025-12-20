@@ -53,7 +53,7 @@ public class Main extends Application {
         root.setCenter(dashboardView);
 
         // Scene
-        Scene scene = new Scene(root, 900, 600);
+        Scene scene = new Scene(root, 1000, 700);
         scene.setFill(Color.TRANSPARENT);
 
         // Load CSS
@@ -61,7 +61,7 @@ public class Main extends Application {
 
         // Stage Configuration
         primaryStage.initStyle(StageStyle.UNDECORATED);
-        primaryStage.setTitle("Minecraft Launcher");
+        primaryStage.setTitle("Antigravity Launcher");
         primaryStage.setScene(scene);
         primaryStage.show();
     }

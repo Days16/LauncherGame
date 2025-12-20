@@ -27,7 +27,7 @@ if (-not (Get-Command mvn -ErrorAction SilentlyContinue)) {
 Write-Host "Building and packaging as EXE..." -ForegroundColor Green
 & $mvn clean package
 
-$ExePath = Join-Path $PSScriptRoot "target\minecraft-launcher-dark.exe"
+$ExePath = Join-Path $PSScriptRoot "target\antigravity_launcher.exe"
 if (Test-Path $ExePath) {
     Write-Host "--- Build Successful! ---" -ForegroundColor Green
     Write-Host "Your EXE is located at: $ExePath" -ForegroundColor Cyan

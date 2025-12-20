@@ -10,7 +10,7 @@ com\launcher\services\JavaRuntimeService.class
 com\launcher\ui\LoginView.class
 com\launcher\services\MicrosoftAuthService.class
 com\launcher\services\MicrosoftAuthService$AuthResult.class
-com\launcher\ui\DashboardView$LaunchCallback.class
+com\launcher\services\LaunchCallback.class
 com\launcher\ui\SettingsView.class
 com\launcher\services\MicrosoftAuthService$DeviceCodeResponse.class
 com\launcher\services\VersionInfo.class

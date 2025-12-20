@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.launcher</groupId>
-    <artifactId>minecraft-launcher-dark</artifactId>
+    <artifactId>antigravity-launcher</artifactId>
     <version>0.1</version>
 
     <properties>
@@ -88,7 +88,7 @@
                         <configuration>
                             <headerType>gui</headerType>
                             <jar>${project.build.directory}/${project.artifactId}-${project.version}-shaded.jar</jar>
-                            <outfile>${project.build.directory}/${project.artifactId}.exe</outfile>
+                            <outfile>${project.build.directory}/antigravity_launcher.exe</outfile>
                             <downloadUrl>https://adoptium.net/</downloadUrl>
                             <classPath>
                                 <mainClass>com.launcher.Launcher</mainClass>
@@ -102,13 +102,13 @@
                             <versionInfo>
                                 <fileVersion>1.0.0.0</fileVersion>
                                 <txtFileVersion>${project.version}</txtFileVersion>
-                                <fileDescription>Minecraft Launcher</fileDescription>
+                                <fileDescription>Antigravity Launcher</fileDescription>
                                 <copyright>2025</copyright>
                                 <productVersion>1.0.0.0</productVersion>
                                 <txtProductVersion>${project.version}</txtProductVersion>
-                                <productName>Minecraft Launcher</productName>
+                                <productName>Antigravity Launcher</productName>
                                 <internalName>launcher</internalName>
-                                <originalFilename>launcher.exe</originalFilename>
+                                <originalFilename>antigravity_launcher.exe</originalFilename>
                             </versionInfo>
                         </configuration>
                     </execution>
