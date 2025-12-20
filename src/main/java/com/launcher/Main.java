@@ -39,7 +39,7 @@ public class Main extends Application {
         // Sidebar with Navigation Logic
         Sidebar sidebar = new Sidebar(
                 () -> {
-                    dashboardView.refreshVersions();
+                    dashboardView.refreshInstances();
                     dashboardView.refreshRemoteModpacks();
                     root.setCenter(dashboardView);
                 }, // On Home

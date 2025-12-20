@@ -5,6 +5,7 @@ C:\Users\Administrator\Documents\GitHub\LauncherGame\src\main\java\com\launcher\
 C:\Users\Administrator\Documents\GitHub\LauncherGame\src\main\java\com\launcher\Main.java
 C:\Users\Administrator\Documents\GitHub\LauncherGame\src\main\java\com\launcher\ui\SettingsView.java
 C:\Users\Administrator\Documents\GitHub\LauncherGame\src\main\java\com\launcher\services\GameLaunchService.java
+C:\Users\Administrator\Documents\GitHub\LauncherGame\src\main\java\com\launcher\services\InstanceMetadataService.java
 C:\Users\Administrator\Documents\GitHub\LauncherGame\src\main\java\com\launcher\services\SettingsService.java
 C:\Users\Administrator\Documents\GitHub\LauncherGame\src\main\java\com\launcher\ui\Sidebar.java
 C:\Users\Administrator\Documents\GitHub\LauncherGame\src\main\java\com\launcher\services\LaunchCallback.java
@@ -15,6 +16,7 @@ C:\Users\Administrator\Documents\GitHub\LauncherGame\src\main\java\com\launcher\
 C:\Users\Administrator\Documents\GitHub\LauncherGame\src\main\java\com\launcher\services\LogService.java
 C:\Users\Administrator\Documents\GitHub\LauncherGame\src\main\java\com\launcher\services\VersionService.java
 C:\Users\Administrator\Documents\GitHub\LauncherGame\src\main\java\com\launcher\services\JavaRuntimeService.java
+C:\Users\Administrator\Documents\GitHub\LauncherGame\src\main\java\com\launcher\ui\AddInstanceDialog.java
 C:\Users\Administrator\Documents\GitHub\LauncherGame\src\main\java\com\launcher\ui\ImportView.java
 C:\Users\Administrator\Documents\GitHub\LauncherGame\src\main\java\com\launcher\services\VersionInfo.java
 C:\Users\Administrator\Documents\GitHub\LauncherGame\src\main\java\com\launcher\ui\DashboardView.java

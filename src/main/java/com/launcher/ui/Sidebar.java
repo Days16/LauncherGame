@@ -18,7 +18,7 @@ public class Sidebar extends VBox {
         this.setSpacing(5);
         this.setPadding(new Insets(30, 15, 15, 15));
 
-        Button homeBtn = createNavButton("🏠  Dashboard", onHome);
+        Button homeBtn = createNavButton("🏠  Instances", onHome);
         Button importBtn = createNavButton("📥  Import Modpack", onImport);
         Button accountsBtn = createNavButton("👤  Accounts", onAccounts);
         Button settingsBtn = createNavButton("⚙  Settings", onSettings);
