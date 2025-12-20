@@ -7,6 +7,7 @@ import com.launcher.services.VersionInfo;
 import com.launcher.services.VersionService;
 import com.launcher.services.ModpackService;
 import com.launcher.services.RemoteModpackService;
+import com.launcher.util.Constants;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
@@ -93,8 +94,18 @@ public class DashboardView extends VBox {
         // --- REMOTE MODPACKS ---
         VBox remoteSection = new VBox(20);
         remoteSection.setAlignment(Pos.TOP_CENTER);
+
+        HBox remoteHeader = new HBox(15);
+        remoteHeader.setAlignment(Pos.CENTER);
         Label remoteTitle = new Label("EXPLORE COMMUNITY MODPACKS");
         remoteTitle.getStyleClass().add("h2");
+
+        Button reloadBtn = new Button("RELOAD");
+        reloadBtn.getStyleClass().add("secondary-button"); // Assuming a secondary-button style exists or adding one
+        reloadBtn.setStyle("-fx-font-size: 10px; -fx-padding: 5 10;");
+        reloadBtn.setOnAction(e -> refreshRemoteModpacks());
+
+        remoteHeader.getChildren().addAll(remoteTitle, reloadBtn);
 
         remoteList = new VBox(15);
         remoteList.setAlignment(Pos.TOP_CENTER);
@@ -104,7 +115,7 @@ public class DashboardView extends VBox {
                 "-fx-background-color: transparent; -fx-background: transparent; -fx-border-color: transparent;");
         scrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
 
-        remoteSection.getChildren().addAll(remoteTitle, scrollPane);
+        remoteSection.getChildren().addAll(remoteHeader, scrollPane);
         VBox.setVgrow(remoteSection, Priority.ALWAYS);
 
         this.getChildren().addAll(hero, controls, remoteSection);
@@ -224,7 +235,7 @@ public class DashboardView extends VBox {
                     actionBtn.getStyleClass().add("play-button");
                     actionBtn.setStyle("-fx-font-size: 12px; -fx-padding: 8 20;");
 
-                    if (new File(System.getProperty("user.home") + "/Documents/MinecraftLauncher/modpacks/" + mp.id)
+                    if (new File(Constants.GAME_DIR + "/modpacks/" + mp.id)
                             .exists()) {
                         actionBtn.setText("INSTALLED");
                         actionBtn.setDisable(true);

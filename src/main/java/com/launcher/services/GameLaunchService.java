@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.launcher.util.Constants;
 
 import java.io.BufferedInputStream;
 import java.io.File;
@@ -18,8 +19,7 @@ import java.util.concurrent.CompletableFuture;
 public class GameLaunchService {
 
     private final Gson gson = new Gson();
-    private final String gameDir = System.getProperty("user.home") + "/Documents/AntigravityLauncher"; // New path in
-                                                                                                       // Documents
+    private final String gameDir = Constants.GAME_DIR;
     private final String assetsDir = gameDir + "/assets";
     private final String librariesDir = gameDir + "/libraries";
     private final String versionsDir = gameDir + "/versions";

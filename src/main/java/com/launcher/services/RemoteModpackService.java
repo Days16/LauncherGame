@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.launcher.util.Constants;
 
 import java.io.*;
 import java.net.HttpURLConnection;
@@ -18,7 +19,7 @@ import java.util.zip.ZipInputStream;
 public class RemoteModpackService {
 
     private final Gson gson = new Gson();
-    private final String modpacksDir = System.getProperty("user.home") + "/Documents/MinecraftLauncher/modpacks";
+    private final String modpacksDir = Constants.GAME_DIR + "/modpacks";
 
     public static class RemoteModpack {
         public String id;

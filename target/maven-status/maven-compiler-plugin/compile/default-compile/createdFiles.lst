@@ -24,3 +24,4 @@ com\launcher\services\SettingsService.class
 com\launcher\services\ModpackService$ModpackType.class
 com\launcher\services\GameLaunchService.class
 com\launcher\ui\DashboardView$1$1.class
+com\launcher\util\Constants.class

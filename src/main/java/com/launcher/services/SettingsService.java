@@ -1,5 +1,6 @@
 package com.launcher.services;
 
+import com.launcher.util.Constants;
 import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
@@ -8,8 +9,7 @@ import java.util.Properties;
 public class SettingsService {
     private static SettingsService instance;
     private final Properties props = new Properties();
-    private final File settingsFile = new File(
-            System.getProperty("user.home") + "/Documents/AntigravityLauncher/launcher_settings.properties");
+    private final File settingsFile = new File(Constants.GAME_DIR + "/launcher_settings.properties");
 
     private SettingsService() {
         load();

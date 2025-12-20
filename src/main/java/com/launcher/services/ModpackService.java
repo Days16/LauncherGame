@@ -5,7 +5,7 @@ import java.io.IOException;
 import java.util.Enumeration;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
-import com.launcher.services.VersionInfo;
+import com.launcher.util.Constants;
 
 public class ModpackService {
 
@@ -51,15 +51,18 @@ public class ModpackService {
 
     public java.util.List<VersionInfo> getModpacksAsVersions() {
         java.util.List<VersionInfo> modpacks = new java.util.ArrayList<>();
-        File modpacksDir = new File(System.getProperty("user.home") + "/Documents/MinecraftLauncher/modpacks");
+        File modpacksDir = new File(Constants.GAME_DIR + "/modpacks");
 
         if (modpacksDir.exists() && modpacksDir.isDirectory()) {
             File[] files = modpacksDir.listFiles();
             if (files != null) {
                 for (File file : files) {
                     if (file.isDirectory()) {
-                        // Treat directory name as modpack ID
-                        modpacks.add(new VersionInfo(file.getName(), "modpack", null));
+                        // Only add if the modpack has a valid JSON file
+                        File jsonFile = new File(file, file.getName() + ".json");
+                        if (jsonFile.exists()) {
+                            modpacks.add(new VersionInfo(file.getName(), "modpack", null));
+                        }
                     }
                 }
             }
