@@ -28,6 +28,10 @@ public class LogService {
         log("ERROR", message);
     }
 
+    public static void warn(String message) {
+        log("WARN", message);
+    }
+
     public static void error(String message, Throwable throwable) {
         log("ERROR", message);
         if (throwable != null) {

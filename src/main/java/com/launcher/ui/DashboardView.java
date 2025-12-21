@@ -131,11 +131,13 @@ public class DashboardView extends VBox {
                     // Kill the process immediately since we just wanted to install
                     process.destroy();
                     refreshInstances();
+                    refreshRemoteModpacks();
                 } else {
                     InstanceMetadataService.getInstance().setInstanceName(version.getId(), customName,
                             version.getType());
                     statusLabel.setText("Installation completed!");
                     refreshInstances();
+                    refreshRemoteModpacks();
                 }
             });
         });
@@ -166,6 +168,7 @@ public class DashboardView extends VBox {
 
                 statusLabel.setText("Instance deleted");
                 refreshInstances();
+                refreshRemoteModpacks();
             }
         });
     }
@@ -177,7 +180,9 @@ public class DashboardView extends VBox {
                 deleteDirectory(file);
             }
         }
-        directory.delete();
+        if (!directory.delete()) {
+            System.err.println("Failed to delete: " + directory.getAbsolutePath());
+        }
     }
 
     private void updateInstancesGrid(List<VersionInfo> versions) {
@@ -301,7 +306,9 @@ public class DashboardView extends VBox {
                     actionBtn.getStyleClass().add("instance-play-button");
                     actionBtn.setStyle("-fx-font-size: 11px; -fx-padding: 6 15;");
 
-                    if (new File(Constants.GAME_DIR + "/modpacks/" + mp.id).exists()) {
+                    File modpackDir = new File(Constants.GAME_DIR + "/modpacks/" + mp.id);
+                    File modpackJson = new File(modpackDir, mp.id + ".json");
+                    if (modpackDir.exists() && modpackJson.exists()) {
                         actionBtn.setText("INSTALLED");
                         actionBtn.setDisable(true);
                         actionBtn.setStyle(
@@ -318,6 +325,7 @@ public class DashboardView extends VBox {
                                 if (success) {
                                     actionBtn.setText("INSTALLED");
                                     refreshInstances();
+                                    refreshRemoteModpacks();
                                 } else {
                                     actionBtn.setDisable(false);
                                     actionBtn.setText("INSTALL");

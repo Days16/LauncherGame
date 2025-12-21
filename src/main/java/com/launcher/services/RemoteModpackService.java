@@ -87,7 +87,6 @@ public class RemoteModpackService {
             try {
                 statusCallback.accept("Downloading " + modpack.name + "...");
                 if (destDir.exists()) {
-                    // Clean up old failed installation if any
                     deleteDirectory(destDir);
                 }
                 destDir.mkdirs();
@@ -95,27 +94,54 @@ public class RemoteModpackService {
                 downloadFile(modpack.downloadUrl, zipFile);
 
                 statusCallback.accept("Extracting...");
-                unzip(zipFile, destDir);
 
-                statusCallback.accept("Fetching base version config (" + modpack.minecraftVersion + ")...");
-                // Fetch base version JSON from Mojang
-                String baseVersionUrl = fetchBaseVersionUrl(modpack.minecraftVersion);
+                // Use robust extraction logic
+                com.launcher.services.ModpackService.ModpackType type = new com.launcher.services.ModpackService()
+                        .detectModpackType(zipFile);
+                extractModpack(zipFile, destDir, type);
+
+                statusCallback.accept("Analyzing...");
+                // Analyze modpack to get version info
+                com.launcher.services.ModpackService modpackService = new com.launcher.services.ModpackService();
+                com.launcher.services.ModpackService.ModpackInfo info = modpackService.analyzeModpack(zipFile);
+
                 File jsonFile = new File(destDir, modpack.id + ".json");
+                String jsonContent = null;
 
-                if (baseVersionUrl != null) {
-                    downloadFile(baseVersionUrl, jsonFile);
-                    // Modify the ID in the JSON to match the modpack ID
+                if ("fabric".equalsIgnoreCase(info.modloader) && info.minecraftVersion != null
+                        && info.modloaderVersion != null) {
+                    String fabricUrl = "https://meta.fabricmc.net/v2/versions/loader/" + info.minecraftVersion
+                            + "/" + info.modloaderVersion + "/profile/json";
+                    statusCallback.accept("Downloading Fabric profile...");
+                    downloadFile(fabricUrl, jsonFile);
+
+                    // Read and modify to ensure ID is correct
+                    JsonObject json;
                     try (FileReader reader = new FileReader(jsonFile)) {
-                        JsonObject versionJson = gson.fromJson(reader, JsonObject.class);
-                        versionJson.addProperty("id", modpack.id);
-                        versionJson.addProperty("type", "modpack");
-                        Files.writeString(jsonFile.toPath(), gson.toJson(versionJson));
+                        json = gson.fromJson(reader, JsonObject.class);
                     }
+                    json.addProperty("id", modpack.id);
+                    json.addProperty("type", "modpack");
+                    if (!json.has("inheritsFrom")) {
+                        json.addProperty("inheritsFrom", info.minecraftVersion);
+                    }
+                    Files.writeString(jsonFile.toPath(), gson.toJson(json));
+                    jsonContent = null;
+
+                } else if ("forge".equalsIgnoreCase(info.modloader) || "neoforge".equalsIgnoreCase(info.modloader)) {
+                    jsonContent = "{\"id\":\"" + modpack.id + "\", \"inheritsFrom\":\"" + info.minecraftVersion
+                            + "\", \"type\":\"modpack\", \"modloader\":\"" + info.modloader
+                            + "\", \"modloaderVersion\":\""
+                            + info.modloaderVersion + "\"}";
                 } else {
-                    // Fallback to dummy if Mojang fetch fails
-                    Files.writeString(jsonFile.toPath(),
-                            "{\"id\":\"" + modpack.id
-                                    + "\", \"mainClass\":\"net.minecraft.client.main.Main\", \"type\":\"modpack\", \"libraries\":[]}");
+                    // Fallback to Vanilla or check for mods
+                    String version = info.minecraftVersion != null ? info.minecraftVersion : modpack.minecraftVersion;
+                    jsonContent = "{\"id\":\"" + modpack.id + "\", \"inheritsFrom\":\"" + version
+                            + "\", \"type\":\"modpack\"}";
+                }
+
+                if (jsonContent != null) {
+                    Files.writeString(jsonFile.toPath(), jsonContent);
                 }
 
                 LogService.info("Successfully installed modpack: " + modpack.name);
@@ -131,31 +157,118 @@ public class RemoteModpackService {
                     zipFile.delete();
                 }
                 if (!success && destDir.exists()) {
-                    // Cleanup failed installation
                     deleteDirectory(destDir);
                 }
             }
         });
     }
 
-    private String fetchBaseVersionUrl(String versionId) {
-        try {
-            URL url = new URL("https://piston-meta.mojang.com/mc/game/version_manifest.json");
-            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-            try (BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()))) {
-                JsonObject json = gson.fromJson(reader, JsonObject.class);
-                JsonArray versions = json.getAsJsonArray("versions");
-                for (JsonElement e : versions) {
-                    JsonObject v = e.getAsJsonObject();
-                    if (v.get("id").getAsString().equals(versionId)) {
-                        return v.get("url").getAsString();
+    private void extractModpack(File zipFile, File destDir, com.launcher.services.ModpackService.ModpackType type)
+            throws Exception {
+        // 1. Analyze Zip Structure to find Root Prefix
+        String rootPrefix = null;
+        try (java.util.zip.ZipFile zf = new java.util.zip.ZipFile(zipFile)) {
+            java.util.Enumeration<? extends java.util.zip.ZipEntry> entries = zf.entries();
+            boolean first = true;
+
+            while (entries.hasMoreElements()) {
+                java.util.zip.ZipEntry entry = entries.nextElement();
+                String name = entry.getName().replace("\\", "/");
+                if (entry.isDirectory())
+                    continue;
+
+                if (name.startsWith("__MACOSX") || name.endsWith(".DS_Store"))
+                    continue;
+
+                int slashIdx = name.indexOf('/');
+                if (slashIdx == -1) {
+                    rootPrefix = "";
+                    break;
+                }
+
+                String topLevel = name.substring(0, slashIdx + 1);
+
+                if (first) {
+                    rootPrefix = topLevel;
+                    first = false;
+                } else {
+                    if (!name.startsWith(rootPrefix)) {
+                        rootPrefix = "";
+                        break;
                     }
                 }
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            rootPrefix = "";
         }
-        return null;
+
+        // 2. Extract Files
+        try (ZipInputStream zis = new ZipInputStream(new FileInputStream(zipFile))) {
+            ZipEntry entry;
+            while ((entry = zis.getNextEntry()) != null) {
+                String entryName = entry.getName().replace("\\", "/");
+
+                if (entryName.startsWith("__MACOSX") || entryName.endsWith(".DS_Store"))
+                    continue;
+
+                if (rootPrefix != null && !rootPrefix.isEmpty() && entryName.startsWith(rootPrefix)) {
+                    entryName = entryName.substring(rootPrefix.length());
+                }
+
+                if (entryName.isEmpty())
+                    continue;
+
+                if (type == com.launcher.services.ModpackService.ModpackType.MODRINTH) {
+                    if (!entryName.startsWith("overrides/"))
+                        continue;
+                    entryName = entryName.substring("overrides/".length());
+                } else if (type == com.launcher.services.ModpackService.ModpackType.CURSEFORGE) {
+                    if (entryName.startsWith("overrides/")) {
+                        entryName = entryName.substring("overrides/".length());
+                    }
+                }
+
+                if (entryName.isEmpty())
+                    continue;
+                if (entryName.equals("manifest.json") || entryName.equals("modrinth.index.json"))
+                    continue;
+
+                File targetFile = new File(destDir, entryName);
+
+                if (entry.isDirectory()) {
+                    targetFile.mkdirs();
+                } else {
+                    targetFile.getParentFile().mkdirs();
+                    try (FileOutputStream fos = new FileOutputStream(targetFile)) {
+                        byte[] buffer = new byte[4096];
+                        int len;
+                        while ((len = zis.read(buffer)) > 0) {
+                            fos.write(buffer, 0, len);
+                        }
+                    }
+                }
+                zis.closeEntry();
+            }
+        }
+
+        // 3. Download Files (for Modrinth)
+        if (type == com.launcher.services.ModpackService.ModpackType.MODRINTH) {
+            com.launcher.services.ModpackService modpackService = new com.launcher.services.ModpackService();
+            List<com.launcher.services.ModpackService.ModpackFile> files = modpackService.getModpackFiles(zipFile);
+            for (com.launcher.services.ModpackService.ModpackFile mpFile : files) {
+                if (!mpFile.downloads.isEmpty()) {
+                    File target = new File(destDir, mpFile.path);
+                    if (!target.exists()) {
+                        target.getParentFile().mkdirs();
+                        try {
+                            downloadFile(mpFile.downloads.get(0), target);
+                        } catch (Exception e) {
+                            LogService.error("Failed to download mod: " + mpFile.path);
+                        }
+                    }
+                }
+            }
+        }
     }
 
     private void deleteDirectory(File directory) {
@@ -171,9 +284,9 @@ public class RemoteModpackService {
     private void downloadFile(String urlStr, File target) throws IOException {
         // Handle potential spaces in urlStr
         String encodedUrl = urlStr.replace(" ", "%20");
-        URL url = java.net.URI.create(encodedUrl).toURL();
-        try (BufferedInputStream in = new BufferedInputStream(url.openStream());
-                FileOutputStream fileOutputStream = new FileOutputStream(target)) {
+        java.net.URL url = java.net.URI.create(encodedUrl).toURL();
+        try (java.io.BufferedInputStream in = new java.io.BufferedInputStream(url.openStream());
+                java.io.FileOutputStream fileOutputStream = new java.io.FileOutputStream(target)) {
             byte dataBuffer[] = new byte[1024];
             int bytesRead;
             while ((bytesRead = in.read(dataBuffer, 0, 1024)) != -1) {
@@ -181,28 +294,6 @@ public class RemoteModpackService {
             }
         } catch (Exception e) {
             throw new IOException("Failed to download from " + urlStr + ": " + e.getMessage(), e);
-        }
-    }
-
-    private void unzip(File zipFile, File destDir) throws IOException {
-        try (ZipInputStream zis = new ZipInputStream(new FileInputStream(zipFile))) {
-            ZipEntry zipEntry = zis.getNextEntry();
-            while (zipEntry != null) {
-                File newFile = new File(destDir, zipEntry.getName());
-                if (zipEntry.isDirectory()) {
-                    newFile.mkdirs();
-                } else {
-                    newFile.getParentFile().mkdirs();
-                    try (FileOutputStream fos = new FileOutputStream(newFile)) {
-                        byte[] buffer = new byte[1024];
-                        int len;
-                        while ((len = zis.read(buffer)) > 0) {
-                            fos.write(buffer, 0, len);
-                        }
-                    }
-                }
-                zipEntry = zis.getNextEntry();
-            }
         }
     }
 }

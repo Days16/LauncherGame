@@ -55,7 +55,7 @@
               <goal>launch4j</goal>
             </goals>
             <configuration>
-              <headerType>gui</headerType>
+              <headerType>console</headerType>
               <jar>${project.build.directory}/${project.artifactId}-${project.version}-shaded.jar</jar>
               <outfile>${project.build.directory}/antigravity_launcher.exe</outfile>
               <downloadUrl>https://adoptium.net/</downloadUrl>

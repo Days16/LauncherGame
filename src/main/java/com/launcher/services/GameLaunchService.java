@@ -56,7 +56,59 @@ public class GameLaunchService {
                     }
                 }
 
-                JsonObject versionJson = gson.fromJson(new FileReader(versionJsonFile), JsonObject.class);
+                JsonObject versionJson;
+                try (FileReader reader = new FileReader(versionJsonFile)) {
+                    versionJson = gson.fromJson(reader, JsonObject.class);
+                }
+
+                // Handle Inheritance (inheritsFrom)
+                if (versionJson.has("inheritsFrom")) {
+                    String parentId = versionJson.get("inheritsFrom").getAsString();
+                    File parentFolder = new File(versionsDir, parentId);
+                    parentFolder.mkdirs();
+                    File parentJsonFile = new File(parentFolder, parentId + ".json");
+
+                    if (!parentJsonFile.exists()) {
+                        LogService.info("Parent version " + parentId + " not found locally. Attempting to fetch...");
+                        String parentUrl = fetchBaseVersionUrl(parentId);
+                        if (parentUrl != null) {
+                            downloadFile(parentUrl, parentJsonFile);
+                        } else {
+                            throw new IOException("Could not find URL for parent version: " + parentId
+                                    + ". Check internet connection.");
+                        }
+                    }
+
+                    if (parentJsonFile.exists()) {
+                        JsonObject parentJson;
+                        try (FileReader reader = new FileReader(parentJsonFile)) {
+                            parentJson = gson.fromJson(reader, JsonObject.class);
+                        }
+                        if (!versionJson.has("mainClass"))
+                            versionJson.add("mainClass", parentJson.get("mainClass"));
+                        if (!versionJson.has("minecraftArguments"))
+                            versionJson.add("minecraftArguments", parentJson.get("minecraftArguments"));
+                        if (!versionJson.has("arguments"))
+                            versionJson.add("arguments", parentJson.get("arguments"));
+                        if (!versionJson.has("assetIndex"))
+                            versionJson.add("assetIndex", parentJson.get("assetIndex"));
+                        if (!versionJson.has("javaVersion"))
+                            versionJson.add("javaVersion", parentJson.get("javaVersion"));
+
+                        if (parentJson.has("libraries")) {
+                            JsonArray parentLibs = parentJson.getAsJsonArray("libraries");
+                            if (versionJson.has("libraries")) {
+                                versionJson.getAsJsonArray("libraries").addAll(parentLibs);
+                            } else {
+                                versionJson.add("libraries", parentLibs);
+                            }
+                        }
+
+                        if (!versionJson.has("downloads") && parentJson.has("downloads")) {
+                            versionJson.add("downloads", parentJson.get("downloads"));
+                        }
+                    }
+                }
 
                 // 3. Download Client JAR
                 callback.onStatusUpdate("Downloading game client...");
@@ -74,6 +126,7 @@ public class GameLaunchService {
                 callback.onStatusUpdate("Downloading libraries...");
                 JsonArray libraries = versionJson.getAsJsonArray("libraries");
                 List<String> classpath = new ArrayList<>();
+                java.util.Set<String> addedArtifacts = new java.util.HashSet<>();
                 File nativesDir = new File(versionFolder, "natives");
                 nativesDir.mkdirs();
 
@@ -81,30 +134,87 @@ public class GameLaunchService {
                     for (JsonElement libElement : libraries) {
                         JsonObject lib = libElement.getAsJsonObject();
 
-                        // Check rules
                         if (!checkRules(lib))
                             continue;
 
-                        JsonObject downloadsObj = lib.getAsJsonObject("downloads");
-                        if (downloadsObj != null) {
-                            // Artifact (Jar)
-                            if (downloadsObj.has("artifact")) {
-                                JsonObject artifact = downloadsObj.getAsJsonObject("artifact");
-                                String path = artifact.get("path").getAsString();
-                                String url = artifact.get("url").getAsString();
-                                File libFile = new File(librariesDir, path);
-
-                                if (!libFile.exists()) {
-                                    downloadFile(url, libFile);
+                        // Deduplication
+                        if (lib.has("name")) {
+                            String name = lib.get("name").getAsString();
+                            String[] parts = name.split(":");
+                            if (parts.length >= 2) {
+                                String key = parts[0] + ":" + parts[1];
+                                if (parts.length >= 4) {
+                                    key += ":" + parts[3];
                                 }
-                                classpath.add(libFile.getAbsolutePath());
+                                if (addedArtifacts.contains(key)) {
+                                    continue;
+                                }
+                                addedArtifacts.add(key);
                             }
+                        }
 
-                            // Classifiers (Natives)
-                            if (downloadsObj.has("classifiers")) {
-                                JsonObject classifiers = downloadsObj.getAsJsonObject("classifiers");
-                                if (classifiers.has("natives-windows")) {
-                                    JsonObject nativeArtifact = classifiers.getAsJsonObject("natives-windows");
+                        // Artifact (Jar)
+                        JsonObject downloadsObj = lib.getAsJsonObject("downloads");
+                        if (downloadsObj != null && downloadsObj.has("artifact")) {
+                            JsonObject artifact = downloadsObj.getAsJsonObject("artifact");
+                            String path = artifact.get("path").getAsString();
+                            String url = artifact.get("url").getAsString();
+                            File libFile = new File(librariesDir, path);
+
+                            if (!libFile.exists()) {
+                                downloadFile(url, libFile);
+                            }
+                            classpath.add(libFile.getAbsolutePath());
+                        } else if (lib.has("name")) {
+                            // Maven style
+                            String name = lib.get("name").getAsString();
+                            String[] parts = name.split(":");
+                            if (parts.length >= 3) {
+                                String domain = parts[0].replace(".", "/");
+                                String artifactId = parts[1];
+                                String libVersion = parts[2];
+                                String path = domain + "/" + artifactId + "/" + libVersion + "/" + artifactId + "-"
+                                        + libVersion + ".jar";
+
+                                File libFile = new File(librariesDir, path);
+                                if (!libFile.exists()) {
+                                    String baseUrl = lib.has("url") ? lib.get("url").getAsString()
+                                            : "https://repo1.maven.org/maven2/";
+                                    if (!baseUrl.endsWith("/"))
+                                        baseUrl += "/";
+                                    try {
+                                        downloadFile(baseUrl + path, libFile);
+                                    } catch (IOException e) {
+                                        if (!baseUrl.contains("repo1.maven.org")) {
+                                            try {
+                                                downloadFile("https://repo1.maven.org/maven2/" + path, libFile);
+                                            } catch (IOException ex) {
+                                                LogService.error("Failed to download library: " + name);
+                                            }
+                                        }
+                                    }
+                                }
+                                if (libFile.exists()) {
+                                    classpath.add(libFile.getAbsolutePath());
+
+                                    if (parts.length >= 4) {
+                                        String classifier = parts[3];
+                                        if (classifier.contains("natives")) {
+                                            LogService.info("Found Maven native library: " + name);
+                                            extractNatives(libFile, nativesDir);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // Classifiers (Natives)
+                        if (downloadsObj != null && downloadsObj.has("classifiers")) {
+                            JsonObject classifiers = downloadsObj.getAsJsonObject("classifiers");
+                            for (String key : classifiers.keySet()) {
+                                if (key.contains("natives-windows")) {
+                                    LogService.info("Found native classifier: " + key);
+                                    JsonObject nativeArtifact = classifiers.getAsJsonObject(key);
                                     String path = nativeArtifact.get("path").getAsString();
                                     String url = nativeArtifact.get("url").getAsString();
                                     File nativeFile = new File(librariesDir, path);
@@ -112,8 +222,6 @@ public class GameLaunchService {
                                     if (!nativeFile.exists()) {
                                         downloadFile(url, nativeFile);
                                     }
-
-                                    // Extract
                                     extractNatives(nativeFile, nativesDir);
                                 }
                             }
@@ -121,28 +229,45 @@ public class GameLaunchService {
                     }
                 }
 
-                // Add client jar to classpath
                 classpath.add(new File(versionFolder, version.getId() + ".jar").getAbsolutePath());
+
+                // Debug & Emergency Native Check
+                LogService.info("Natives Directory: " + nativesDir.getAbsolutePath());
+                String[] nativeFiles = nativesDir.list();
+                boolean hasLwjgl = false;
+                if (nativeFiles != null) {
+                    LogService.info("Natives found: " + nativeFiles.length);
+                    for (String f : nativeFiles) {
+                        LogService.info(" - " + f);
+                        if (f.equals("lwjgl.dll"))
+                            hasLwjgl = true;
+                    }
+                }
+
+                if (!hasLwjgl) {
+                    LogService.warn("lwjgl.dll missing! Attempting emergency scan of classpath...");
+                    for (String cpEntry : classpath) {
+                        if (cpEntry.contains("natives") && cpEntry.contains("windows")) {
+                            LogService.info("Emergency extracting from: " + cpEntry);
+                            extractNatives(new File(cpEntry), nativesDir);
+                        }
+                    }
+                }
 
                 // 5. Build Command
                 callback.onStatusUpdate("Starting game...");
                 String mainClass = versionJson.get("mainClass").getAsString();
 
-                // Determine Java Version
-                int javaMajorVersion = 8; // Default
+                int javaMajorVersion = 8;
                 if (versionJson.has("javaVersion")) {
                     javaMajorVersion = versionJson.getAsJsonObject("javaVersion").get("majorVersion").getAsInt();
                 }
 
                 SettingsService settings = SettingsService.getInstance();
                 String javaPath;
-
-                // Use managed runtime if settings path is default or empty, otherwise use
-                // settings
                 String settingsPath = settings.getJavaPath();
                 if (settingsPath == null || settingsPath.isEmpty() || settingsPath.equals("java")
                         || settingsPath.contains("jdk-17")) {
-                    // Auto-resolve
                     javaPath = new JavaRuntimeService().getJavaPath(javaMajorVersion,
                             status -> callback.onStatusUpdate(status));
                 } else {
@@ -159,11 +284,14 @@ public class GameLaunchService {
                 command.add(String.join(File.pathSeparator, classpath));
                 command.add(mainClass);
 
-                // Game Arguments
                 command.add("--version");
                 command.add(version.getId());
                 command.add("--gameDir");
-                command.add(gameDir);
+                if ("modpack".equals(version.getType())) {
+                    command.add(versionFolder.getAbsolutePath());
+                } else {
+                    command.add(gameDir);
+                }
                 command.add("--assetsDir");
                 command.add(assetsDir);
 
@@ -183,7 +311,6 @@ public class GameLaunchService {
                 command.add("--userProperties");
                 command.add("{}");
 
-                // Resolution & Fullscreen
                 command.add("--width");
                 command.add(String.valueOf(settings.getResolutionWidth()));
                 command.add("--height");
@@ -193,8 +320,14 @@ public class GameLaunchService {
                 }
 
                 ProcessBuilder pb = new ProcessBuilder(command);
-                pb.directory(new File(gameDir));
+                File workingDir = "modpack".equals(version.getType()) ? versionFolder : new File(gameDir);
+                pb.directory(workingDir);
                 pb.inheritIO();
+
+                LogService.info("Launch Command: " + String.join(" ", command));
+                LogService.info("Working Directory: " + workingDir.getAbsolutePath());
+                LogService.info("Natives Path Argument: " + "-Djava.library.path=" + nativesDir.getAbsolutePath());
+
                 Process process = pb.start();
 
                 callback.onStatusUpdate("Game running!");
@@ -206,6 +339,7 @@ public class GameLaunchService {
                 return null;
             }
         });
+
     }
 
     public boolean isVersionInstalled(VersionInfo version) {
@@ -244,6 +378,10 @@ public class GameLaunchService {
                 allow = action.equals("allow");
             }
         }
+        if (!allow) {
+            // LogService.debug("Skipping library due to rules: " + (lib.has("name") ?
+            // lib.get("name").getAsString() : "unknown"));
+        }
         return allow;
     }
 
@@ -261,18 +399,21 @@ public class GameLaunchService {
     }
 
     private void extractNatives(File zipFile, File targetDir) {
+        LogService.info("Extracting natives from: " + zipFile.getName());
         try (java.util.zip.ZipInputStream zis = new java.util.zip.ZipInputStream(
                 new java.io.FileInputStream(zipFile))) {
             java.util.zip.ZipEntry entry;
             while ((entry = zis.getNextEntry()) != null) {
                 if (entry.getName().endsWith(".dll") || entry.getName().endsWith(".so")
                         || entry.getName().endsWith(".dylib")) {
-                    File target = new File(targetDir, entry.getName());
-                    if (!target.getParentFile().exists())
-                        target.getParentFile().mkdirs();
+                    // Flatten path: use only the filename, ignore directories in the zip
+                    String fileName = new File(entry.getName()).getName();
+                    File target = new File(targetDir, fileName);
+
+                    LogService.info("Extracting native: " + fileName);
 
                     try (FileOutputStream fos = new FileOutputStream(target)) {
-                        byte[] buffer = new byte[1024];
+                        byte[] buffer = new byte[4096];
                         int len;
                         while ((len = zis.read(buffer)) > 0) {
                             fos.write(buffer, 0, len);
@@ -281,7 +422,29 @@ public class GameLaunchService {
                 }
             }
         } catch (IOException e) {
+            LogService.error("Failed to extract natives from " + zipFile.getName(), e);
             e.printStackTrace();
         }
+    }
+
+    private String fetchBaseVersionUrl(String versionId) {
+        try {
+            URL url = new URL("https://piston-meta.mojang.com/mc/game/version_manifest_v2.json");
+            java.net.HttpURLConnection conn = (java.net.HttpURLConnection) url.openConnection();
+            try (java.io.BufferedReader reader = new java.io.BufferedReader(
+                    new java.io.InputStreamReader(conn.getInputStream()))) {
+                JsonObject json = gson.fromJson(reader, JsonObject.class);
+                JsonArray versions = json.getAsJsonArray("versions");
+                for (JsonElement e : versions) {
+                    JsonObject v = e.getAsJsonObject();
+                    if (v.get("id").getAsString().equals(versionId)) {
+                        return v.get("url").getAsString();
+                    }
+                }
+            }
+        } catch (Exception e) {
+            LogService.error("Failed to fetch version manifest", e);
+        }
+        return null;
     }
 }
