@@ -231,6 +231,12 @@ public class GameLaunchService {
 
                 classpath.add(new File(versionFolder, version.getId() + ".jar").getAbsolutePath());
 
+                // 4b. Download Assets
+                if (versionJson.has("assetIndex")) {
+                    callback.onStatusUpdate("Downloading assets...");
+                    downloadAssets(versionJson.getAsJsonObject("assetIndex"), callback);
+                }
+
                 // Debug & Emergency Native Check
                 LogService.info("Natives Directory: " + nativesDir.getAbsolutePath());
                 String[] nativeFiles = nativesDir.list();
@@ -388,7 +394,17 @@ public class GameLaunchService {
     private void downloadFile(String urlStr, File target) throws IOException {
         target.getParentFile().mkdirs();
         URL url = new URL(urlStr);
-        try (BufferedInputStream in = new BufferedInputStream(url.openStream());
+        java.net.HttpURLConnection conn = (java.net.HttpURLConnection) url.openConnection();
+        conn.setRequestProperty("User-Agent",
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36");
+        conn.setInstanceFollowRedirects(true);
+
+        int responseCode = conn.getResponseCode();
+        if (responseCode != java.net.HttpURLConnection.HTTP_OK) {
+            throw new IOException("Server returned HTTP response code: " + responseCode + " for URL: " + urlStr);
+        }
+
+        try (BufferedInputStream in = new BufferedInputStream(conn.getInputStream());
                 FileOutputStream fileOutputStream = new FileOutputStream(target)) {
             byte dataBuffer[] = new byte[1024];
             int bytesRead;
@@ -424,6 +440,74 @@ public class GameLaunchService {
         } catch (IOException e) {
             LogService.error("Failed to extract natives from " + zipFile.getName(), e);
             e.printStackTrace();
+        }
+    }
+
+    private void downloadAssets(JsonObject assetIndex, LaunchCallback callback) throws IOException {
+        String id = assetIndex.get("id").getAsString();
+        String url = assetIndex.get("url").getAsString();
+        File indexesDir = new File(assetsDir, "indexes");
+        indexesDir.mkdirs();
+        File indexFile = new File(indexesDir, id + ".json");
+
+        if (!indexFile.exists()) {
+            LogService.info("Downloading asset index: " + id);
+            downloadFile(url, indexFile);
+        }
+
+        JsonObject indexJson;
+        try (FileReader reader = new FileReader(indexFile)) {
+            indexJson = gson.fromJson(reader, JsonObject.class);
+        }
+
+        if (indexJson.has("objects")) {
+            JsonObject objects = indexJson.getAsJsonObject("objects");
+            File objectsDir = new File(assetsDir, "objects");
+            objectsDir.mkdirs();
+
+            List<CompletableFuture<Void>> futures = new ArrayList<>();
+            int total = objects.size();
+            java.util.concurrent.atomic.AtomicInteger current = new java.util.concurrent.atomic.AtomicInteger(0);
+
+            LogService.info("Checking " + total + " assets...");
+
+            // Batch processing to avoid too many open connections
+            List<String> keys = new ArrayList<>(objects.keySet());
+            int batchSize = 50;
+
+            for (int i = 0; i < keys.size(); i += batchSize) {
+                int end = Math.min(i + batchSize, keys.size());
+                List<String> batch = keys.subList(i, end);
+
+                for (String key : batch) {
+                    JsonObject obj = objects.getAsJsonObject(key);
+                    String hash = obj.get("hash").getAsString();
+                    String prefix = hash.substring(0, 2);
+                    File file = new File(objectsDir, prefix + "/" + hash);
+
+                    if (!file.exists()) {
+                        futures.add(CompletableFuture.runAsync(() -> {
+                            try {
+                                String downloadUrl = "https://resources.download.minecraft.net/" + prefix + "/" + hash;
+                                downloadFile(downloadUrl, file);
+                                int c = current.incrementAndGet();
+                                if (c % 10 == 0) {
+                                    callback.onStatusUpdate("Downloading assets (" + c + "/" + total + ")...");
+                                }
+                            } catch (IOException e) {
+                                LogService.error("Failed to download asset: " + key, e);
+                            }
+                        }));
+                    } else {
+                        current.incrementAndGet();
+                    }
+                }
+
+                // Wait for batch to complete
+                CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
+                futures.clear();
+                callback.onStatusUpdate("Downloading assets (" + current.get() + "/" + total + ")...");
+            }
         }
     }
 
